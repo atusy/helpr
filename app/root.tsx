@@ -9,6 +9,7 @@ import {
   Scripts,
   ScrollRestoration,
   useLoaderData,
+  useNavigation,
 } from "@remix-run/react";
 
 import { createEmptyContact, getContacts } from "./data";
@@ -31,6 +32,8 @@ export const loader = async () => {
 
 export default function App() {
   const { contacts } = useLoaderData<typeof loader>();
+  const navigation = useNavigation();
+
   return (
     <html lang="en">
       <head>
@@ -40,7 +43,12 @@ export default function App() {
         <Links />
       </head>
       <body>
-        <div id="sidebar">
+        <div
+          className={
+            navigation.state === "loading" ? "loading" : ""
+          }
+          id="sidebar"
+        >
           <h1>Remix Contacts</h1>
           <div>
             <Form id="search-form" role="search">
