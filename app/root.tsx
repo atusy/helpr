@@ -4,8 +4,6 @@ import {
   Form,
   Links,
   Meta,
-  NavLink,
-  Outlet,
   Scripts,
   ScrollRestoration,
   useLoaderData,
@@ -24,13 +22,39 @@ export const links: LinksFunction = () => [
 
 const webR = new WebR();
 
+const getHelp = async (pkg: string | null, topic: string | null): Promise<string> => {
+  const tick = "`";
+  const help = (pkg != null && topic != null)
+    ? `help(${tick}${topic}${tick}, package = ${pkg}, help_type="html")`
+    : `help()`
+  const shelter = await new webR.Shelter();
+  const result = await shelter.captureR(`
+    x <- ${help}
+    paths <- as.character(x)
+    file <- paths[1L]
+    pkgname <- basename(dirname(dirname(file)))
+    try({
+      helpfile <- utils:::.getHelpFile(file)
+      tools::Rd2HTML(helpfile, package = pkgname)
+    }, silent = TRUE)
+  `);
+  const content = result.output;
+  shelter.purge();
+  return content.map((x) => x.data).join("\n");
+}
+
 export const loader = async ({
   request,
 }: LoaderFunctionArgs) => {
+  await webR.init();
+
   const url = new URL(request.url);
   const q = url.searchParams.get("q");
+  const pkg = url.searchParams.get("pkg");
+  const topic = url.searchParams.get("topic");
 
-  await webR.init();
+  const content = await getHelp(pkg, topic)
+
   const result = await webR.evalR(`
     db <- utils::hsearch_db()
     as.list(db$Aliases[
@@ -39,22 +63,22 @@ export const loader = async ({
     ])
   `);
   const helpData = await result.toJs();
-  const topic = helpData.values[0].values as string[]
-  const pkg = helpData.values[1].values as string[]
+  const topics = helpData.values[0].values as string[]
+  const pkgs = helpData.values[1].values as string[]
 
   const tick = (x: string) => "`" + x + "`"
-  const toc = topic.map((v, i) => {
-    return { name: `${pkg[i]}::${v.match(/^[.a-zA-Z]/) ? v : tick(v)}`, topic: v, pkg: pkg[i] }
+  const toc = topics.map((v, i) => {
+    return { name: `${pkgs[i]}::${v.match(/^[.a-zA-Z]/) ? v : tick(v)}`, topic: v, pkg: pkgs[i] }
   })
 
   const fzf = new Fzf(toc, { selector: (item) => item.name })
   const entries = fzf.find(q ?? "")
 
-  return json({ toc: entries, q });
+  return json({ toc: entries, q, pkg, topic, content });
 };
 
 export default function App() {
-  const { toc, q } = useLoaderData<typeof loader>();
+  const { toc, q, pkg, topic, content } = useLoaderData<typeof loader>();
   const navigation = useNavigation();
   const submit = useSubmit();
   const searching =
@@ -100,37 +124,35 @@ export default function App() {
             >
               <input
                 id="q"
+                name="q"
                 aria-label="Search contacts"
                 className={searching ? "loading" : ""}
                 defaultValue={q || ""}
                 placeholder="Search"
                 type="search"
-                name="q"
               />
               <div
                 id="search-spinner"
                 hidden={!searching}
                 aria-hidden
               />
+              <input id="pkg" name="pkg" defaultValue={pkg || ""} />
+              <input id="topic" name="topic" defaultValue={topic || ""} />
             </Form>
           </div>
-          <nav>
+          <nav id="helpTopics">
             {toc.length ? (
               <ul>
                 {toc.map(({ item }) => (
                   <li key={item.name}>
-                    <NavLink
-                      to={
-                        `help/${encodeURIComponent(item.pkg)
-                        }/${encodeURIComponent(item.topic)
-                        }${q != null ? "?q=" + q : ""}`
-                      }
-                      className={({ isActive, isPending }) =>
-                        isActive ? "active" : isPending ? "pending" : ""
-                      }
+                    <Form
+                      onClick={(event) => { submit(event.currentTarget, { replace: true }) }}
                     >
-                      {item.name}
-                    </NavLink>
+                      <a className={(pkg === item.pkg && topic === item.topic) ? "active" : ""}>{item.name}</a>
+                      <input name="q" defaultValue={q || ""} />
+                      <input name="pkg" defaultValue={item.pkg} />
+                      <input name="topic" defaultValue={item.topic} />
+                    </Form>
                   </li>
                 ))}
               </ul>
@@ -142,7 +164,7 @@ export default function App() {
           </nav>
         </div>
         <div id="detail">
-          <Outlet />
+          <iframe id="helpContent" srcDoc={content}></iframe>
         </div>
 
         <ScrollRestoration />
