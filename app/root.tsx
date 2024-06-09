@@ -1,4 +1,4 @@
-import type { LinksFunction, LoaderFunctionArgs } from "@remix-run/node";
+import type { LinksFunction } from "@remix-run/node";
 import {
   Form,
   Links,
@@ -19,7 +19,7 @@ export const links: LinksFunction = () => [
   { rel: "stylesheet", href: appStylesHref },
 ];
 
-const webR = new WebR();
+const webR = new WebR({ channelType: ChannelType.PostMessage });
 const attemptedPackages = new Set()
 
 const getHelp = async (pkg: string | null, topic: string | null): Promise<string> => {
@@ -166,10 +166,8 @@ export default function App() {
                   <li key={item.name} id={encodeURIComponent(item.name)}>
                     <Form
                       onClick={(event) => {
-                        (async () => {
-                          setPkg(item.pkg);
-                          setTopic(item.topic);
-                        })();
+                        setPkg(item.pkg);
+                        setTopic(item.topic);
                         submit(event.currentTarget, { replace: true });
                       }}
                     >
