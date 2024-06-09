@@ -121,7 +121,7 @@ export default function App() {
                 {toc.map(({ item }) => (
                   <li key={item.name}>
                     <NavLink
-                      to={`help/${item.pkg}/${item.topic}`}
+                      to={`help/${item.pkg}/${item.topic}${q != null ? "?q=" + q : ""}`}
                       className={({ isActive, isPending }) =>
                         isActive ? "active" : isPending ? "pending" : ""
                       }
