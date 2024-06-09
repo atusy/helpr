@@ -56,7 +56,7 @@ export const loader = async ({
 
   const maybePkg = q?.match(/^[^\s:]+::/)
   if (maybePkg) {
-    webR.installPackages([maybePkg[0].slice(0, -2)])
+    await webR.installPackages([maybePkg[0].slice(0, -2)])
   }
 
   const result = await webR.evalR(`
