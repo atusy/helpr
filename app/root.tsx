@@ -33,19 +33,18 @@ export const loader = async ({
   await webR.init();
   const result = await webR.evalR(`
     db <- utils::hsearch_db()
-    as.list(db$Base[
-      db$Base$Type == "help",
-      c("Topic", "Package", "Title")
+    as.list(db$Aliases[
+      db$Aliases$ID %in% db$Base$ID[db$Base$Type == "help"],
+      c("Alias", "Package")
     ])
   `);
   const helpData = await result.toJs();
   const topic = helpData.values[0].values as string[]
   const pkg = helpData.values[1].values as string[]
-  const title = helpData.values[2].values as string[]
 
   const tick = (x: string) => "`" + x + "`"
   const toc = topic.map((v, i) => {
-    return { name: `${pkg[i]}::${v.match(/^[.a-zA-Z]/) ? v : tick(v)}`, topic: v, pkg: pkg[i], title: title[i] }
+    return { name: `${pkg[i]}::${v.match(/^[.a-zA-Z]/) ? v : tick(v)}`, topic: v, pkg: pkg[i] }
   })
 
   const fzf = new Fzf(toc, { selector: (item) => item.name })
