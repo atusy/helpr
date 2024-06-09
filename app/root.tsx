@@ -43,8 +43,9 @@ export const loader = async ({
   const pkg = helpData.values[1].values as string[]
   const title = helpData.values[2].values as string[]
 
+  const tick = (x: string) => "`" + x + "`"
   const toc = topic.map((v, i) => {
-    return { name: `${pkg[i]}::${v}`, topic: v, pkg: pkg[i], title: title[i] }
+    return { name: `${pkg[i]}::${v.match(/^[.a-zA-Z]/) ? v : tick(v)}`, topic: v, pkg: pkg[i], title: title[i] }
   })
 
   const fzf = new Fzf(toc, { selector: (item) => item.name })
