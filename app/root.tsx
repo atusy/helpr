@@ -21,6 +21,7 @@ export const links: LinksFunction = () => [
 ];
 
 const webR = new WebR();
+const attemptedPackages = new Set()
 
 const getHelp = async (pkg: string | null, topic: string | null): Promise<string> => {
   const tick = "`";
@@ -53,7 +54,10 @@ export const loader = async ({
   const pkg = url.searchParams.get("pkg");
   const topic = url.searchParams.get("topic");
 
-  const content = await getHelp(pkg, topic)
+  const maybePkg = q?.match(/^[^\s:]+::/)
+  if (maybePkg) {
+    webR.installPackages([maybePkg[0].slice(0, -2)])
+  }
 
   const result = await webR.evalR(`
     db <- utils::hsearch_db()
@@ -65,6 +69,14 @@ export const loader = async ({
   const helpData = await result.toJs();
   const topics = helpData.values[0].values as string[]
   const pkgs = helpData.values[1].values as string[]
+
+  pkgs.map((p) => attemptedPackages.add(p));
+
+  if (pkg != null && pkg !== "" && !attemptedPackages.has(pkg)) {
+    attemptedPackages.add(pkg)
+    await webR.installPackages([pkg])
+  }
+  const content = await getHelp(pkg, topic)
 
   const tick = (x: string) => "`" + x + "`"
   const toc = topics.map((v, i) => {
