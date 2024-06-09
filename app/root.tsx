@@ -44,21 +44,21 @@ const getHelp = async (pkg: string | null, topic: string | null): Promise<string
   return content.map((x) => x.data).join("\n");
 }
 
-export const loader = async ({
-  request,
-}: LoaderFunctionArgs) => {
-  await webR.init();
-
-  const url = new URL(request.url);
-  const q = url.searchParams.get("q");
-  const pkg = url.searchParams.get("pkg");
-  const topic = url.searchParams.get("topic");
-
+const installPackageFromQ = async (q: string | null) => {
   const maybePkg = q?.match(/^[^\s:]+::/)
   if (maybePkg) {
     await webR.installPackages([maybePkg[0].slice(0, -2)])
   }
+}
 
+const installPackageFromPkg = async (pkg: string | null) => {
+  if (pkg != null && pkg !== "" && !attemptedPackages.has(pkg)) {
+    attemptedPackages.add(pkg)
+    await webR.installPackages([pkg])
+  }
+}
+
+const getTopics = async (q: string | null) => {
   const result = await webR.evalR(`
     db <- utils::hsearch_db()
     as.list(db$Aliases[
@@ -72,21 +72,34 @@ export const loader = async ({
 
   pkgs.map((p) => attemptedPackages.add(p));
 
-  if (pkg != null && pkg !== "" && !attemptedPackages.has(pkg)) {
-    attemptedPackages.add(pkg)
-    await webR.installPackages([pkg])
-  }
-  const content = await getHelp(pkg, topic)
-
   const tick = (x: string) => "`" + x + "`"
-  const toc = topics.map((v, i) => {
+  const entries = topics.map((v, i) => {
     return { name: `${pkgs[i]}::${v.match(/^[.a-zA-Z]/) ? v : tick(v)}`, topic: v, pkg: pkgs[i] }
   })
 
-  const fzf = new Fzf(toc, { selector: (item) => item.name })
-  const entries = fzf.find(q ?? "")
+  const fzf = new Fzf(entries, { selector: (item) => item.name })
 
-  return json({ toc: entries, q, pkg, topic, content });
+  return fzf.find(q ?? "")
+}
+
+export const loader = async ({
+  request,
+}: LoaderFunctionArgs) => {
+  await webR.init();
+
+  const url = new URL(request.url);
+  const q = url.searchParams.get("q");
+  const pkg = url.searchParams.get("pkg");
+  const topic = url.searchParams.get("topic");
+
+  await installPackageFromQ(q)
+  await installPackageFromPkg(pkg)
+
+  const content = await getHelp(pkg, topic)
+
+  const toc = await getTopics(q)
+
+  return json({ toc, q, pkg, topic, content });
 };
 
 export default function App() {
