@@ -97,13 +97,13 @@ export const loader = async ({
 
   const content = await getHelp(pkg, topic)
 
-  const toc = await getTopics(q)
+  const entries = await getTopics(q)
 
-  return json({ toc, q, pkg, topic, content });
+  return json({ entries, q, pkg, topic, content });
 };
 
 export default function App() {
-  const { toc, q, pkg, topic, content } = useLoaderData<typeof loader>();
+  const { entries, q, pkg, topic, content } = useLoaderData<typeof loader>();
   const navigation = useNavigation();
   const submit = useSubmit();
   const searching =
