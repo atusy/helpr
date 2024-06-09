@@ -146,10 +146,14 @@ export default function App() {
                 {toc.map(({ item }) => (
                   <li key={item.name}>
                     <Form
-                      onClick={(event) => { submit(event.currentTarget, { replace: true }) }}
+                      onClick={(event) => {
+                        document.getElementById(encodeURIComponent(item.name)).value =
+                          document.getElementById("q").value;
+                        submit(event.currentTarget, { replace: true })
+                      }}
                     >
                       <a className={(pkg === item.pkg && topic === item.topic) ? "active" : ""}>{item.name}</a>
-                      <input name="q" defaultValue={q || ""} />
+                      <input name="q" id={encodeURIComponent(item.name)} />
                       <input name="pkg" defaultValue={item.pkg} />
                       <input name="topic" defaultValue={item.topic} />
                     </Form>
