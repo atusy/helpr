@@ -1,6 +1,7 @@
 import type { HeadersFunction } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import { Form, useActionData } from "@remix-run/react";
+import { Form, useActionData, useLoaderData } from "@remix-run/react";
+import { Fzf } from "fzf";
 import { WebR } from 'webr';
 
 export const headers: HeadersFunction = () => ({
@@ -9,6 +10,19 @@ export const headers: HeadersFunction = () => ({
 });
 
 const webR = new WebR();
+
+export const loader = async () => {
+  await webR.init();
+  const result = await webR.evalR(`
+    db <- utils::hsearch_db()
+    as.list(db$Base[
+      db$Base$Type == "help",
+      c("Topic", "Package", "Title")
+    ])
+  `);
+  const output = await result.toJs();
+  return json(output);
+}
 
 export const action = async () => {
   await webR.init();
@@ -21,6 +35,8 @@ export const action = async () => {
 }
 
 export default function FuzzyHelp() {
+  const loadedData = useLoaderData<typeof loader>();
+
   const resp = useActionData<typeof action>()
   const values = resp?.values ?? []
   return (

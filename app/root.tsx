@@ -1,5 +1,5 @@
 import type { LinksFunction, LoaderFunctionArgs } from "@remix-run/node";
-import { json, redirect } from "@remix-run/node";
+import { json } from "@remix-run/node";
 import {
   Form,
   Links,
@@ -13,31 +13,48 @@ import {
   useSubmit,
 } from "@remix-run/react";
 import { useEffect } from "react";
-
-import { createEmptyContact, getContacts } from "./data";
+import { WebR } from 'webr';
+import { Fzf } from "fzf";
 
 import appStylesHref from "./app.css?url";
-
-export const action = async () => {
-  const contact = await createEmptyContact();
-  return redirect(`/contacts/${contact.id}/edit`);
-};
 
 export const links: LinksFunction = () => [
   { rel: "stylesheet", href: appStylesHref },
 ];
+
+const webR = new WebR();
 
 export const loader = async ({
   request,
 }: LoaderFunctionArgs) => {
   const url = new URL(request.url);
   const q = url.searchParams.get("q");
-  const contacts = await getContacts(q);
-  return json({ contacts, q });
+
+  await webR.init();
+  const result = await webR.evalR(`
+    db <- utils::hsearch_db()
+    as.list(db$Base[
+      db$Base$Type == "help",
+      c("Topic", "Package", "Title")
+    ])
+  `);
+  const helpData = await result.toJs();
+  const topic = helpData.values[0].values as string[]
+  const pkg = helpData.values[1].values as string[]
+  const title = helpData.values[2].values as string[]
+
+  const toc = topic.map((v, i) => {
+    return { name: `${pkg[i]}::${v}`, topic: v, pkg: pkg[i], title: title[i] }
+  })
+
+  const fzf = new Fzf(toc, { selector: (item) => item.name })
+  const entries = fzf.find(q ?? "")
+
+  return json({ toc: entries, q });
 };
 
 export default function App() {
-  const { contacts, q } = useLoaderData<typeof loader>();
+  const { toc, q } = useLoaderData<typeof loader>();
   const navigation = useNavigation();
   const submit = useSubmit();
   const searching =
@@ -96,35 +113,19 @@ export default function App() {
                 aria-hidden
               />
             </Form>
-            <Form method="post">
-              <button type="submit">New</button>
-            </Form>
           </div>
           <nav>
-            {contacts.length ? (
+            {toc.length ? (
               <ul>
-                {contacts.map((contact) => (
-                  <li key={contact.id}>
+                {toc.map(({ item }) => (
+                  <li key={item.name}>
                     <NavLink
+                      to={`help/${item.pkg}/${item.topic}`}
                       className={({ isActive, isPending }) =>
-                        isActive
-                          ? "active"
-                          : isPending
-                            ? "pending"
-                            : ""
+                        isActive ? "active" : isPending ? "pending" : ""
                       }
-                      to={`contacts/${contact.id}`}
                     >
-                      {contact.first || contact.last ? (
-                        <>
-                          {contact.first} {contact.last}
-                        </>
-                      ) : (
-                        <i>No Name</i>
-                      )}{" "}
-                      {contact.favorite ? (
-                        <span>★</span>
-                      ) : null}
+                      {item.name}
                     </NavLink>
                   </li>
                 ))}
@@ -137,12 +138,12 @@ export default function App() {
           </nav>
         </div>
         <div id="detail">
-          <Outlet />
+          <Outlet context={{ toc, webR }} />
         </div>
 
         <ScrollRestoration />
         <Scripts />
       </body>
-    </html>
+    </html >
   );
 }

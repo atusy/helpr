@@ -14,6 +14,9 @@ dependencies:
   '@remix-run/serve':
     specifier: ^2.9.2
     version: 2.9.2(typescript@5.4.5)
+  fzf:
+    specifier: ^0.5.2
+    version: 0.5.2
   isbot:
     specifier: ^4.1.0
     version: 4.4.0
@@ -3300,6 +3303,10 @@ packages:
   /functions-have-names@1.2.3:
     resolution: {integrity: sha512-xckBUXyTIqT97tq2x2AMb+g163b5JFysYk0x4qxNFwbfQkmNZoiRHb6sPzI9/QV33WeuvVYBUIiD4NzNIyqaRQ==}
     dev: true
+
+  /fzf@0.5.2:
+    resolution: {integrity: sha512-Tt4kuxLXFKHy8KT40zwsUPUkg1CrsgY25FxA2U/j/0WgEDCk3ddc/zLTCCcbSHX9FcKtLuVaDGtGE/STWC+j3Q==}
+    dev: false
 
   /generic-names@4.0.0:
     resolution: {integrity: sha512-ySFolZQfw9FoDb3ed9d80Cm9f0+r7qj+HJkWjeD9RBfpxEVTlVhol+gvaQB/78WbwYfbnNh8nWHHBSlg072y6A==}
