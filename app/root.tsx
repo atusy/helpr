@@ -1,18 +1,17 @@
 import type { LinksFunction, LoaderFunctionArgs } from "@remix-run/node";
-import { json } from "@remix-run/node";
 import {
   Form,
   Links,
   Meta,
   Scripts,
   ScrollRestoration,
-  useLoaderData,
+  useLocation,
   useNavigation,
   useSubmit,
 } from "@remix-run/react";
-import { useEffect } from "react";
-import { WebR } from 'webr';
-import { Fzf } from "fzf";
+import { useEffect, useState } from "react";
+import { WebR, ChannelType } from 'webr';
+import { Fzf, FzfResultItem } from "fzf";
 
 import appStylesHref from "./app.css?url";
 
@@ -46,7 +45,7 @@ const getHelp = async (pkg: string | null, topic: string | null): Promise<string
 
 const installPackageFromQ = async (q: string | null) => {
   const maybePkg = q?.match(/^[^\s:]+::/)
-  if (maybePkg) {
+  if (maybePkg && !attemptedPackages.has(maybePkg)) {
     await webR.installPackages([maybePkg[0].slice(0, -2)])
   }
 }
@@ -58,7 +57,7 @@ const installPackageFromPkg = async (pkg: string | null) => {
   }
 }
 
-const getTopics = async (q: string | null) => {
+const getEntries = async (q: string | null) => {
   const result = await webR.evalR(`
     db <- utils::hsearch_db()
     as.list(db$Aliases[
@@ -82,42 +81,37 @@ const getTopics = async (q: string | null) => {
   return fzf.find(q ?? "")
 }
 
-export const loader = async ({
-  request,
-}: LoaderFunctionArgs) => {
-  await webR.init();
-
-  const url = new URL(request.url);
-  const q = url.searchParams.get("q");
-  const pkg = url.searchParams.get("pkg");
-  const topic = url.searchParams.get("topic");
-
-  await installPackageFromQ(q)
-  await installPackageFromPkg(pkg)
-
-  const content = await getHelp(pkg, topic)
-
-  const entries = await getTopics(q)
-
-  return json({ entries, q, pkg, topic, content });
-};
-
 export default function App() {
-  const { entries, q, pkg, topic, content } = useLoaderData<typeof loader>();
+  const location = useLocation();
+  const params = new URLSearchParams(location.search);
+
+  const q0 = params.get("q");
+  const [entries, setEntries] = useState<FzfResultItem<{ name: string; topic: string; pkg: string }>[]>([]);
+  const [q, setQ] = useState(q0);
+  const [pkg, setPkg] = useState(params.get("pkg"));
+  const [topic, setTopic] = useState(params.get("topic"));
+  const [content, setContent] = useState("");
+
   const navigation = useNavigation();
   const submit = useSubmit();
   const searching =
     navigation.location &&
-    new URLSearchParams(navigation.location.search).has(
-      "q"
-    );
+    new URLSearchParams(navigation.location.search).has("q");
 
   useEffect(() => {
-    const searchField = document.getElementById("q");
-    if (searchField instanceof HTMLInputElement) {
-      searchField.value = q || "";
-    }
-  }, [q]);
+    (async () => {
+      await webR.init();
+      await installPackageFromQ(q);
+      setEntries(await getEntries(q));
+    })();
+  }, [q])
+  useEffect(() => {
+    (async () => {
+      await webR.init();
+      await installPackageFromPkg(pkg);
+      setContent(await getHelp(pkg, topic));
+    })();
+  }, [pkg, topic])
 
   return (
     <html lang="en">
@@ -140,10 +134,10 @@ export default function App() {
             <Form
               id="search-form"
               onChange={(event) => {
+                const q = document.getElementById("q").value;
                 const isFirstSearch = q === null;
-                submit(event.currentTarget, {
-                  replace: !isFirstSearch
-                })
+                submit(event.currentTarget, { replace: !isFirstSearch });
+                setQ(q);
               }}
               role="search"
             >
@@ -152,7 +146,7 @@ export default function App() {
                 name="q"
                 aria-label="Search contacts"
                 className={searching ? "loading" : ""}
-                defaultValue={q || ""}
+                defaultValue={q0 || ""}
                 placeholder="Search"
                 type="search"
               />
@@ -166,19 +160,21 @@ export default function App() {
             </Form>
           </div>
           <nav id="helpTopics">
-            {toc.length ? (
+            {entries.length ? (
               <ul>
-                {toc.map(({ item }) => (
-                  <li key={item.name}>
+                {entries.map(({ item }) => (
+                  <li key={item.name} id={encodeURIComponent(item.name)}>
                     <Form
                       onClick={(event) => {
-                        document.getElementById(encodeURIComponent(item.name)).value =
-                          document.getElementById("q").value;
-                        submit(event.currentTarget, { replace: true })
+                        (async () => {
+                          setPkg(item.pkg);
+                          setTopic(item.topic);
+                        })();
+                        submit(event.currentTarget, { replace: true });
                       }}
                     >
                       <a className={(pkg === item.pkg && topic === item.topic) ? "active" : ""}>{item.name}</a>
-                      <input name="q" id={encodeURIComponent(item.name)} />
+                      <input name="q" className="q" defaultValue={q || ""} />
                       <input name="pkg" defaultValue={item.pkg} />
                       <input name="topic" defaultValue={item.topic} />
                     </Form>
