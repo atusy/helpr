@@ -35,12 +35,6 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
 
 export default function Help() {
   const { help } = useLoaderData<typeof loader>();
-  const ctx = useOutletContext() as {
-    toc: FzfResultItem<Record<string, string>>[];
-    webR: WebR;
-  };
-  webR = webR; // somehow, error happens without this...
-  webR = ctx.webR;
   return (
     <iframe
       srcDoc={help.map((x) => x.data).join("\n")}

@@ -142,7 +142,7 @@ export default function App() {
           </nav>
         </div>
         <div id="detail">
-          <Outlet context={{ toc, webR }} />
+          <Outlet />
         </div>
 
         <ScrollRestoration />
