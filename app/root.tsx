@@ -25,7 +25,7 @@ const attemptedPackages = new Set()
 
 const getHelp = async (pkg: string | null, topic: string | null): Promise<string> => {
   const tick = "`";
-  const help = (pkg != null && topic != null)
+  const help = (pkg != null && pkg !== "" && topic != null && topic !== "")
     ? `help(${tick}${topic}${tick}, package = ${pkg}, help_type="html")`
     : `help()`
   const shelter = await new webR.Shelter();
