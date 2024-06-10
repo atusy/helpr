@@ -192,7 +192,7 @@ export default function App() {
             {entries.length ? (
               <ul>
                 {filtered.map(({ item }) => (
-                  <li key={item.name} id={encodeURIComponent(item.name)}>
+                  <li key={item.name}>
                     <Form
                       onClick={(event) => {
                         setPkg(item.pkg);
