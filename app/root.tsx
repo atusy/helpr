@@ -173,7 +173,7 @@ export default function App() {
               <input
                 id="q"
                 name="q"
-                aria-label="Search contacts"
+                aria-label="Search topics"
                 className={searching ? "loading" : ""}
                 defaultValue={q0 || ""}
                 placeholder="Search"
@@ -209,7 +209,7 @@ export default function App() {
               </ul>
             ) : (
               <p>
-                <i>No contacts</i>
+                <i>No topics</i>
               </p>
             )}
           </nav>
