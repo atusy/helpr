@@ -44,10 +44,11 @@ const getHelp = async (pkg: string | null, topic: string | null): Promise<string
 }
 
 const installPackageFromQ = async (q: string | null) => {
-  const maybePkg = q?.match(/^[^\s:]+::/)
-  if (maybePkg && !attemptedPackages.has(maybePkg)) {
-    await webR.installPackages([maybePkg[0].slice(0, -2)])
+  const maybePkg = q?.match(/^[^\s:]+::/);
+  if (maybePkg != null && maybePkg.length > 0 && !attemptedPackages.has(maybePkg)) {
+    await webR.installPackages([maybePkg[0].slice(0, -2)]);
   }
+  return maybePkg
 }
 
 const installPackageFromPkg = async (pkg: string | null) => {
@@ -57,7 +58,7 @@ const installPackageFromPkg = async (pkg: string | null) => {
   }
 }
 
-const getEntries = async (q: string | null) => {
+const getEntries = async () => {
   const result = await webR.evalR(`
     db <- utils::hsearch_db()
     as.list(db$Aliases[
@@ -75,9 +76,11 @@ const getEntries = async (q: string | null) => {
   const entries = topics.map((v, i) => {
     return { name: `${pkgs[i]}::${v.match(/^[.a-zA-Z]/) ? v : tick(v)}`, topic: v, pkg: pkgs[i] }
   })
+  return entries
+}
 
+const filterEntries = (entries: { name: string; topic: string; pkg: string }[], q: string | null) => {
   const fzf = new Fzf(entries, { selector: (item) => item.name })
-
   return fzf.find(q ?? "")
 }
 
@@ -86,8 +89,9 @@ export default function App() {
   const params = new URLSearchParams(location.search);
 
   const q0 = params.get("q");
-  const [entries, setEntries] = useState<FzfResultItem<{ name: string; topic: string; pkg: string }>[]>([]);
+  const [entries, setEntries] = useState<{ name: string; topic: string; pkg: string }[]>([]);
   const [q, setQ] = useState(q0);
+  const [n, setN] = useState(attemptedPackages.size);
   const [pkg, setPkg] = useState(params.get("pkg"));
   const [topic, setTopic] = useState(params.get("topic"));
   const [content, setContent] = useState("");
@@ -101,8 +105,17 @@ export default function App() {
   useEffect(() => {
     (async () => {
       await webR.init();
+      setEntries(await getEntries());
+      return "entries"
+    })().then(console.log);
+  }, [n])
+  useEffect(() => {
+    (async () => {
+      await webR.init();
       await installPackageFromQ(q);
-      setEntries(await getEntries(q));
+      if (n > attemptedPackages.size) {
+        setN(attemptedPackages.size);
+      }
     })();
   }, [q])
   useEffect(() => {
@@ -162,7 +175,7 @@ export default function App() {
           <nav id="helpTopics">
             {entries.length ? (
               <ul>
-                {entries.map(({ item }) => (
+                {filterEntries(entries, q).map(({ item }) => (
                   <li key={item.name} id={encodeURIComponent(item.name)}>
                     <Form
                       onClick={(event) => {
