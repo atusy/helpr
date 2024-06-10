@@ -150,10 +150,7 @@ export default function App() {
       </head>
       <body>
         <div
-          className={
-            navigation.state === "loading" && !searching
-              ? "loading" : ""
-          }
+          className={navigation.state === "loading" && !searching ? "loading" : ""}
           id="sidebar"
         >
           <h1>Remix Contacts</h1>
