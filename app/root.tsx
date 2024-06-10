@@ -26,7 +26,7 @@ const getHelp = async (pkg: string | null, topic: string | null): Promise<string
   const tick = "`";
   const help = (pkg != null && pkg !== "" && topic != null && topic !== "")
     ? `help(${tick}${topic}${tick}, package = ${pkg}, help_type="html")`
-    : `help()`
+    : `help()`;
   const shelter = await new webR.Shelter();
   const result = await shelter.captureR(`
     x <- ${help}
@@ -48,13 +48,13 @@ const installPackageFromQ = async (q: string | null) => {
   if (maybePkg != null && maybePkg.length > 0 && !attemptedPackages.has(maybePkg)) {
     await webR.installPackages([maybePkg[0].slice(0, -2)]);
   }
-  return maybePkg
+  return maybePkg;
 }
 
 const installPackageFromPkg = async (pkg: string | null) => {
   if (pkg != null && pkg !== "" && !attemptedPackages.has(pkg)) {
-    attemptedPackages.add(pkg)
-    await webR.installPackages([pkg])
+    attemptedPackages.add(pkg);
+    await webR.installPackages([pkg]);
   }
 }
 
@@ -67,22 +67,22 @@ const getEntries = async () => {
     ])
   `);
   const helpData = await result.toJs();
-  const topics = helpData.values[0].values as string[]
-  const pkgs = helpData.values[1].values as string[]
+  const topics = helpData.values[0].values as string[];
+  const pkgs = helpData.values[1].values as string[];
 
   pkgs.map((p) => attemptedPackages.add(p));
 
-  const tick = (x: string) => "`" + x + "`"
+  const tick = (x: string) => "`" + x + "`";
   const entries = topics.map((v, i) => {
-    return { name: `${pkgs[i]}::${v.match(/^[.a-zA-Z]/) ? v : tick(v)}`, topic: v, pkg: pkgs[i] }
+    return { name: `${pkgs[i]}::${v.match(/^[.a-zA-Z]/) ? v : tick(v)}`, topic: v, pkg: pkgs[i] };
   })
-  return entries
+  return entries;
 }
 
 const filterEntries = (entries: { name: string; topic: string; pkg: string }[], q: string | null) => {
   const fzf = new Fzf(entries, { selector: (item) => item.name });
   const found = fzf.find(q ?? "");
-  return found
+  return found;
 }
 
 export default function App() {
@@ -111,17 +111,17 @@ export default function App() {
       await installPackageFromPkg(pkg);
       setContent(await getHelp(pkg, topic));
     })();
-  }, [pkg, topic])
+  }, [pkg, topic]);
   useEffect(() => {
     (async () => {
       await webR.init();
-      const newEntries = await getEntries()
+      const newEntries = await getEntries();
       if (newEntries.length > entries.length) {
         // avoid set on page load
         setEntries(newEntries);
       }
     })();
-  }, [n])
+  }, [n]);
   useEffect(() => {
     (async () => {
       await webR.init();
@@ -130,15 +130,15 @@ export default function App() {
         setN(attemptedPackages.size);
       }
     })();
-  }, [q])
+  }, [q]);
   useEffect(() => {
     if (incremental) {
       // 高速で入力すると、filteredが更新される前にまたここに来てしまう
-      setFiltered(filterEntries(filtered.map((x) => x.item), q))
+      setFiltered(filterEntries(filtered.map((x) => x.item), q));
     } else {
-      setFiltered(filterEntries(entries, q))
+      setFiltered(filterEntries(entries, q));
     }
-  }, [entries, incremental, q])
+  }, [entries, incremental, q]);
 
   return (
     <html lang="en">
