@@ -133,6 +133,7 @@ export default function App() {
   }, [q])
   useEffect(() => {
     if (incremental) {
+      // 高速で入力すると、filteredが更新される前にまたここに来てしまう
       setFiltered(filterEntries(filtered.map((x) => x.item), q))
     } else {
       setFiltered(filterEntries(entries, q))
@@ -163,10 +164,8 @@ export default function App() {
                 const newQ = document.getElementById("q").value;
                 const isFirstSearch = newQ === null;
                 setQ(newQ);
-                if (newQ != null && q != null && newQ.slice(0, q.length) === q) {
-                  if (!incremental) {
-                    setIncremental(true);
-                  }
+                if (newQ != null && q != null && newQ.slice(0, q.length) === q && !incremental) {
+                  setIncremental(true);
                 } else if (incremental) {
                   setIncremental(false);
                 }
