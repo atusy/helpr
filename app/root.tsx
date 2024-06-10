@@ -11,7 +11,7 @@ import {
 } from "@remix-run/react";
 import { useEffect, useState } from "react";
 import { WebR, ChannelType } from 'webr';
-import { Fzf, FzfResultItem } from "fzf";
+import { Fzf, FzfResultItem, byLengthAsc, byStartAsc } from "fzf";
 
 import appStylesHref from "./app.css?url";
 
@@ -81,7 +81,7 @@ const getEntries = async () => {
 }
 
 const filterEntries = (entries: { name: string; topic: string; pkg: string }[], q: string | null) => {
-  const fzf = new Fzf(entries, { selector: (item) => item.name });
+  const fzf = new Fzf(entries, { selector: (item) => item.name, tiebreakers: [byStartAsc, byLengthAsc,] });
   const found = fzf.find(q ?? "");
   return found;
 }
