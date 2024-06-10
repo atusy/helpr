@@ -46,6 +46,7 @@ const getHelp = async (pkg: string | null, topic: string | null): Promise<string
 const installPackageFromQ = async (q: string | null) => {
   const maybePkg = q?.match(/^[^\s:]+::/);
   if (maybePkg != null && maybePkg.length > 0 && !attemptedPackages.has(maybePkg)) {
+    attemptedPackages.add(maybePkg);
     await webR.installPackages([maybePkg[0].slice(0, -2)]);
   }
   return maybePkg;
@@ -91,7 +92,6 @@ export default function App() {
 
   const q0 = params.get("q");
   const [filtered, setFiltered] = useState<FzfResultItem<{ name: string; topic: string; pkg: string }>[]>([]);
-  const [incremental, setIncremental] = useState(false);
   const [entries, setEntries] = useState<{ name: string; topic: string; pkg: string }[]>([]);
   const [q, setQ] = useState(q0);
   const [n, setN] = useState(attemptedPackages.size);
@@ -105,6 +105,14 @@ export default function App() {
     navigation.location &&
     new URLSearchParams(navigation.location.search).has("q");
 
+  useEffect(() => {
+    (async () => {
+      await webR.init();
+      const entries = await getEntries();
+      setEntries(entries);
+      setFiltered(filterEntries(entries, q));
+    })();
+  }, []);
   useEffect(() => {
     (async () => {
       await webR.init();
@@ -126,19 +134,12 @@ export default function App() {
     (async () => {
       await webR.init();
       await installPackageFromQ(q);
-      if (n > attemptedPackages.size) {
-        setN(attemptedPackages.size);
-      }
+      setN(attemptedPackages.size);
     })();
   }, [q]);
   useEffect(() => {
-    if (incremental) {
-      // 高速で入力すると、filteredが更新される前にまたここに来てしまう
-      setFiltered(filterEntries(filtered.map((x) => x.item), q));
-    } else {
-      setFiltered(filterEntries(entries, q));
-    }
-  }, [entries, incremental, q]);
+    setFiltered(filterEntries(entries, q));
+  }, [entries]);
 
   return (
     <html lang="en">
@@ -153,7 +154,6 @@ export default function App() {
           className={navigation.state === "loading" && !searching ? "loading" : ""}
           id="sidebar"
         >
-          <h1>Remix Contacts</h1>
           <div>
             <Form
               id="search-form"
@@ -161,10 +161,10 @@ export default function App() {
                 const newQ = document.getElementById("q").value;
                 const isFirstSearch = newQ === null;
                 setQ(newQ);
-                if (newQ != null && q != null && newQ.slice(0, q.length) === q && !incremental) {
-                  setIncremental(true);
-                } else if (incremental) {
-                  setIncremental(false);
+                if (newQ != null && q != null && newQ.slice(0, q.length) === q) {
+                  setFiltered(filterEntries(filtered.map((x) => x.item), newQ));
+                } else {
+                  setFiltered(filterEntries(entries, newQ));
                 }
                 submit(event.currentTarget, { replace: !isFirstSearch });
               }}
