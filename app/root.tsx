@@ -80,8 +80,9 @@ const getEntries = async () => {
 }
 
 const filterEntries = (entries: { name: string; topic: string; pkg: string }[], q: string | null) => {
-  const fzf = new Fzf(entries, { selector: (item) => item.name })
-  return fzf.find(q ?? "")
+  const fzf = new Fzf(entries, { selector: (item) => item.name });
+  const found = fzf.find(q ?? "");
+  return found
 }
 
 export default function App() {
@@ -89,6 +90,8 @@ export default function App() {
   const params = new URLSearchParams(location.search);
 
   const q0 = params.get("q");
+  const [filtered, setFiltered] = useState<FzfResultItem<{ name: string; topic: string; pkg: string }>[]>([]);
+  const [incremental, setIncremental] = useState(false);
   const [entries, setEntries] = useState<{ name: string; topic: string; pkg: string }[]>([]);
   const [q, setQ] = useState(q0);
   const [n, setN] = useState(attemptedPackages.size);
@@ -105,9 +108,19 @@ export default function App() {
   useEffect(() => {
     (async () => {
       await webR.init();
-      setEntries(await getEntries());
-      return "entries"
-    })().then(console.log);
+      await installPackageFromPkg(pkg);
+      setContent(await getHelp(pkg, topic));
+    })();
+  }, [pkg, topic])
+  useEffect(() => {
+    (async () => {
+      await webR.init();
+      const newEntries = await getEntries()
+      if (newEntries.length > entries.length) {
+        // avoid set on page load
+        setEntries(newEntries);
+      }
+    })();
   }, [n])
   useEffect(() => {
     (async () => {
@@ -119,12 +132,12 @@ export default function App() {
     })();
   }, [q])
   useEffect(() => {
-    (async () => {
-      await webR.init();
-      await installPackageFromPkg(pkg);
-      setContent(await getHelp(pkg, topic));
-    })();
-  }, [pkg, topic])
+    if (incremental) {
+      setFiltered(filterEntries(filtered.map((x) => x.item), q))
+    } else {
+      setFiltered(filterEntries(entries, q))
+    }
+  }, [entries, incremental, q])
 
   return (
     <html lang="en">
@@ -147,10 +160,17 @@ export default function App() {
             <Form
               id="search-form"
               onChange={(event) => {
-                const q = document.getElementById("q").value;
-                const isFirstSearch = q === null;
+                const newQ = document.getElementById("q").value;
+                const isFirstSearch = newQ === null;
+                setQ(newQ);
+                if (newQ != null && q != null && newQ.slice(0, q.length) === q) {
+                  if (!incremental) {
+                    setIncremental(true);
+                  }
+                } else if (incremental) {
+                  setIncremental(false);
+                }
                 submit(event.currentTarget, { replace: !isFirstSearch });
-                setQ(q);
               }}
               role="search"
             >
@@ -175,7 +195,7 @@ export default function App() {
           <nav id="helpTopics">
             {entries.length ? (
               <ul>
-                {filterEntries(entries, q).map(({ item }) => (
+                {filtered.map(({ item }) => (
                   <li key={item.name} id={encodeURIComponent(item.name)}>
                     <Form
                       onClick={(event) => {
