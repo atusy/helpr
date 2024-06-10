@@ -22,10 +22,12 @@ export const links: LinksFunction = () => [
 const webR = new WebR({ channelType: ChannelType.PostMessage });
 const attemptedPackages = new Set()
 
+const tick = (x: string) => {
+  return x === "`" ? `"${x}"` : ("`" + x + "`");
+}
 const getHelp = async (pkg: string | null, topic: string | null): Promise<string> => {
-  const tick = "`";
   const help = (pkg != null && pkg !== "" && topic != null && topic !== "")
-    ? `help(${tick}${topic}${tick}, package = ${pkg}, help_type="html")`
+    ? `help(${tick(topic)}, package = ${pkg}, help_type="html")`
     : `help()`;
   const shelter = await new webR.Shelter();
   const result = await shelter.captureR(`
@@ -73,7 +75,6 @@ const getEntries = async () => {
 
   pkgs.map((p) => attemptedPackages.add(p));
 
-  const tick = (x: string) => "`" + x + "`";
   const entries = topics.map((v, i) => {
     return { name: `${pkgs[i]}::${v.match(/^[.a-zA-Z]/) ? v : tick(v)}`, topic: v, pkg: pkgs[i] };
   })
@@ -95,8 +96,7 @@ export default function App() {
   const [entries, setEntries] = useState<{ name: string; topic: string; pkg: string }[]>([]);
   const [q, setQ] = useState(q0);
   const [n, setN] = useState(attemptedPackages.size);
-  const [pkg, setPkg] = useState(params.get("pkg"));
-  const [topic, setTopic] = useState(params.get("topic"));
+  const [choice, setChoice] = useState([params.get("pkg"), params.get("topic")]);
   const [content, setContent] = useState("");
 
   const navigation = useNavigation();
@@ -116,10 +116,10 @@ export default function App() {
   useEffect(() => {
     (async () => {
       await webR.init();
-      await installPackageFromPkg(pkg);
-      setContent(await getHelp(pkg, topic));
+      await installPackageFromPkg(choice[0]);
+      setContent(await getHelp(choice[0], choice[1]));
     })();
-  }, [pkg, topic]);
+  }, [choice]);
   useEffect(() => {
     (async () => {
       await webR.init();
@@ -184,8 +184,8 @@ export default function App() {
                 hidden={!searching}
                 aria-hidden
               />
-              <input id="pkg" name="pkg" defaultValue={pkg || ""} />
-              <input id="topic" name="topic" defaultValue={topic || ""} />
+              <input id="pkg" name="pkg" defaultValue={choice[0] || ""} />
+              <input id="topic" name="topic" defaultValue={choice[1] || ""} />
             </Form>
           </div>
           <nav id="helpTopics">
@@ -195,12 +195,11 @@ export default function App() {
                   <li key={item.name}>
                     <Form
                       onClick={(event) => {
-                        setPkg(item.pkg);
-                        setTopic(item.topic);
+                        setChoice([item.pkg, item.topic]);
                         submit(event.currentTarget, { replace: true });
                       }}
                     >
-                      <a className={(pkg === item.pkg && topic === item.topic) ? "active" : ""}>{item.name}</a>
+                      <a className={(choice[0] === item.pkg && choice[1] === item.topic) ? "active" : ""}>{item.name}</a>
                       <input name="q" className="q" defaultValue={q || ""} />
                       <input name="pkg" defaultValue={item.pkg} />
                       <input name="topic" defaultValue={item.topic} />
